@@ -48,6 +48,20 @@ residuals <- resid(m1) #pull out residuals
 fish_data1$Lat <- fish_data$Lat #re-add Lat column to fish data
 fish_data1$Lon <- fish_data$Lon #re-add Lon column to fish data
 fish_data_no_na <- fish_data[complete.cases(fish_data1),] #remove NAs from fish data
-resids_df <- cbind(fish_data_no_na$Lat, fish_data_no_na$Lon, residuals)
 
+# The residuals with locations has to be a data frame for coordinates fxn to work
+resids_df <- data.frame(Lon = fish_data_no_na$Lon, 
+                        Lat = fish_data_no_na$Lat, 
+                        residuals = residuals)
 coordinates(resids_df) <- c("Lon","Lat")
+
+
+####
+####  Run variogram and plot result -------------------------------
+####
+varMod <- variogram(residuals~1, data=resids_df)
+plot(varMod$dist, varMod$gamma, ylim=c(0,max(varMod$gamma)), 
+     col="dodgerblue", type="l")
+points(varMod$dist, varMod$gamma, ylim=c(0,max(varMod$gamma)), 
+       col="dodgerblue", pch=21, bg="white")
+
