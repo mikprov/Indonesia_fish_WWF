@@ -1,0 +1,48 @@
+---
+title: Explaining spatial variation of fish biomass due to environmental and social
+  variables in Indonesia
+output: html_document
+---
+
+```{r load_libs, echo=FALSE, warning=FALSE, message=FALSE}
+library(ggplot2); library(ggmap)
+```
+
+### Team
+* Mikaela Provost (World Wildlife Fund)
+* Andrew Tredennick (Utah State University)
+* Philipp Boersch-Supan (Florida State University) 
+
+### Introduction
+Our goal is to identify important drivers of spatial variation of fish biomass for several species in an Indonesian fishery. In particular, we are interested in relative contribution of environmental (e.g. coral reef status) and social variables (e.g. distance to fish market) to explaining spatial variation in biomass. Identifying the factors that determine the abundance and health (for which biomass is a proxy) of fish species is critical for informing the placement of and need for Marine Protected Areas (MPAs). Since fishing is a major economic activity in Indonesia, there is a clearly a need to balance conservation efforts and the impacts of such efforts on human livelihoods. To do so requires the very information we seek to provide here by analysing the spatial variation of fish biomass for several important species.
+
+### General Methods
+Our data come from dive surveys conducted of the coast of West Papua in the SEA NAME (Figure #). Surveys were conducted between DATE to DATE. The data consists of estimates of fish biomass calculated from fish length using allometric relationships. Predictor variables can be seen in Table #. 
+
+```{r study_map, echo=FALSE, include=TRUE}
+fish_data <- read.csv("../data/Fish_and_contextual_var_for_SAMSI.csv")
+####
+####  Make a ggmap ---------------------------------------------
+####
+# # Now get the base map using 'get_map', the location is also a Google search
+# mapALL <- get_map(location="selat dampier", source ="stamen", maptype="toner",
+#                   zoom=7)
+# # Put it together using 'ggmap' and the standard ggplot call to geom_point
+# ggmap(mapALL, extent="device")+
+#   geom_point(data=fish_data, aes(x=Lon, y=Lat), 
+#              size=4, alpha=0.6, color="dodgerblue")
+```
+
+We will use Bayesion hierarchical regression to estimate the importance of several environmental and socio-economic variables on fish biomass in space. The model takes the general form:
+
+$$
+\begin{align}
+\mu_{i(s(l))} &= \alpha_{s} + \boldsymbol{\beta}_{s} \textbf{X}_{i(s(l))} + \eta_{l} \\
+\text{Pr}(\boldsymbol{\beta}, \boldsymbol{\alpha}, \sigma_{\beta}, \sigma_{\alpha}, \sigma | \textbf{y}) &= \prod_{i=1}^{N} \text{lognormal}(\bar{y}_{i(s(l))} | \text{log}(\mu_{i(s(l))}), \sigma) \times \\
+&\prod_{s=1}^{N_{s}} \text{normal}(\alpha_{s} | \bar{\alpha}, \sigma_{\alpha})  \prod_{j=1}^{N_{j}} \text{normal}(\beta_{j,s} | \bar{\beta}_{j}, \sigma_{beta}) \times \\
+&\prod_{l=1}^{N_{l}} \text{normal}(\eta_{l} | 0,10^{-8}) \text{gamma}(\sigma_{beta} | .0001, .0001) \times \\
+&\text{gamma}(\sigma_{alpha} | .0001, .0001) \text{gamma}(\sigma | .0001, .0001)
+\end{align}
+$$
+
+where $\alpha_{s}$ is a species-specific intercept drawn from a 'global' population of intercepts ($\bar{\alpha}$), $\boldsymbol{\beta}$ is the vector of species-specific regression coefficients for the effects of independent variables ($\textbf{X}$) drawn from a 'global' population of regression coefficients ($\bar{\beta}$), and $\eta$ is an intercept offset for the random effect of site location. 
