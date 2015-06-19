@@ -58,34 +58,51 @@ data{
   int<lower=0> fam_n; // number of families
   int<lower=0> fid[obs_n]; // family id
   vector[obs_n] Y; // observation vector
-  vector[obs_n] X1; // design matrix (covariates)
+  //vector[obs_n] X1; // design matrix (covariates)
+  matrix[obs_n, covs_n] X;
 }
 parameters{
   real a_mu;
   vector[yrs_n] a;
-  real b1_mu;
-  vector[fam_n] b1;
+  //real b1_mu;
+  //vector[fam_n] b1;
+  vector[fam_n] b_mu;
+  matrix[fam_n, covs_n] b;
   vector[fam_n] fint;
   real<lower=0.00001> sig_a;
-  real<lower=0.00001> sig_b1;
+  //real<lower=0.00001> sig_b1;
+  vector<lower=0.00001>[covs_n] sig_b;
   real<lower=0.00001> sig_f;
   real<lower=0.00001> sig_m;
 }
 transformed parameters{
   real mu[obs_n];
-  for(n in 1:obs_n)
-    mu[n] <- a[yid[n]] + fint[fid[n]] + b1[fid[n]]*X1[n];
+  real xbeta[obs_n];
+  real xtmp[covs_n];
+  for(n in 1:obs_n){
+    //mu[n] <- a[yid[n]] + fint[fid[n]] + b1[fid[n]]*X1[n];
+    for(k in 1:covs_n)
+      xtmp[k] <- b[fid[n],k] * X[n, k];
+    xbeta[n] <- sum(xtmp);
+    mu[n] <- a[yid[n]] + fint[fid[n]] + xbeta[n];
+  }
 }
 model{
   // Priors
   a_mu ~ uniform(-100,100);
   a ~ normal(a_mu, sig_a);
-  b1_mu ~ uniform(-100,100);
-    for(f in 1:fam_n){
-      b1[f] ~ normal(b1_mu, sig_b1);
-    }
+  //b1_mu ~ uniform(-100,100);
+  //  for(f in 1:fam_n){
+  //    b1[f] ~ normal(b1_mu, sig_b1);
+  //  }
+  for(k in 1:covs_n){
+    b_mu[k] ~ uniform(-100,100);
+    sig_b[k] ~ cauchy(0,5);
+    for(f in 1:fam_n)
+      b[f,k] ~ normal(b_mu[k], sig_b[k]);
+  }
   sig_a ~ cauchy(0,5);
-  sig_b1 ~ cauchy(0,5);
+  //sig_b1 ~ cauchy(0,5);
   sig_f ~ cauchy(0,5);
   fint ~ normal(0, sig_f);
   sig_m ~ cauchy(0,5);
@@ -115,18 +132,21 @@ X <- x_matrix
 
 ## Set reasonable initial values for three chains
 inits <- list()
-inits[[1]] <- list(a_mu = 0, a=rep(0,yrs_n), b1_mu=0, b1=rep(0,fam_n),
-              fint = rep(0,fam_n), sig_b1=0.5, sig_a=0.5, sig_m=0.5, sig_f=0.5)
+inits[[1]] <- list(a_mu = 0, a=rep(0,yrs_n), b_mu=rep(0, covs_n), 
+                   b=matrix(0,nrow=fam_n,ncol=covs_n),
+                   fint = rep(0,fam_n), sig_b=rep(0.5,covs_n), 
+                   sig_a=0.5, sig_m=0.5, sig_f=0.5)
 
 datalist <- list(obs_n=obs_n, yrs_n=yrs_n, yid=yid, covs_n=covs_n,
-                 fam_n=fam_n, fid=fid, Y=Y, X1=X[,1])
-pars=c("a_mu", "a", "b1_mu",  "b1", "sig_b1", "sig_a", "sig_m", "fint", "sig_f")
+                 fam_n=fam_n, fid=fid, Y=Y, X=X)
+pars=c("a_mu", "a", "b_mu",  "b", "sig_b", "sig_a", "sig_m", "fint", "sig_f")
 
 stanmodel <- stan(model_code=model_string, data=datalist, pars=pars, chains=0)
 
 mcmc_samples <- stan(fit=stanmodel, data=datalist, init=inits,
                      pars=pars, chains=1, iter=2000, warmup=1000)
 print(mcmc_samples)
+plot(mcmc_samples)
 traceplot(mcmc_samples)
 
 
