@@ -178,8 +178,12 @@ sflist <-
                             iter=2000, warmup=1000, init=list(inits[[i]])))
 fit <- sflist2stanfit(sflist)
 print(fit)
+long <- ggs(fit)
+stansumm <- as.data.frame(summary(fit)["summary"])
+rhats <- stansumm["summary.Rhat"]
 
-
+saveRDS(long, "fishbiomass_stanmcmc.RDS")
+write.csv(rhats, "fishbiomass_stanmcmc_rhats.csv")
 
 ####################################
 ##### PRESENCE-ABSENCE MODEL #######
