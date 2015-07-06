@@ -1,0 +1,151 @@
+\documentclass[12pt,]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+    \usepackage{xltxtra,xunicode}
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
+  \newcommand{\euro}{€}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\ifxetex
+  \usepackage[setpagesize=false, % page size defined by xetex
+              unicode=false, % unicode breaks when used with xetex
+              xetex]{hyperref}
+\else
+  \usepackage[unicode=true]{hyperref}
+\fi
+\hypersetup{breaklinks=true,
+            bookmarks=true,
+            pdfauthor={},
+            pdftitle={},
+            colorlinks=true,
+            citecolor=blue,
+            urlcolor=blue,
+            linkcolor=magenta,
+            pdfborder={0 0 0}}
+\urlstyle{same}  % don't use monospace font for urls
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\setcounter{secnumdepth}{0}
+
+%%% Use protect on footnotes to avoid problems with footnotes in titles
+\let\rmarkdownfootnote\footnote%
+\def\footnote{\protect\rmarkdownfootnote}
+
+%%% Change title format to be more compact
+\usepackage{titling}
+\setlength{\droptitle}{-2em}
+  \title{}
+  \pretitle{\vspace{\droptitle}}
+  \posttitle{}
+  \author{}
+  \preauthor{}\postauthor{}
+  \date{}
+  \predate{}\postdate{}
+
+
+
+
+\begin{document}
+
+\maketitle
+
+
+\subsection{Model of spatial variation of fish
+biomass}\label{model-of-spatial-variation-of-fish-biomass}
+
+We model observation \emph{i} of fish biomass associated with family
+\emph{f} at time \emph{t} as being normally distributed around a
+deterministic process \(\mu_{i(f),t}\):
+
+\begin{equation}
+y_{i(f),t} \sim \text{Normal}(\mu_{i(f),t}, \sigma^2)
+\end{equation}
+
+where we use the subscript \emph{i(f)} to denote observation \emph{i}
+associated with family \emph{f} and \emph{y} is log(biomass). The
+deterministic mean (\(\mu_{i(f),t}\)) is a function of a time-varying
+intercept (where year is a random effect) and ecological and social
+covariates (Table \#):
+
+\begin{equation}
+\mu_{i(f),t} = \alpha_t + \textbf{x}_{i,t}' \boldsymbol{\beta}_f 
+\end{equation}
+
+where \(\alpha_t\) is the year-specific intercept, \(\textbf{x}_{i,t}'\)
+is a vector of covariates, and \(\boldsymbol{\beta}_f\) is a vector of
+family-specific model coefficients. We treat year and family as random
+effects on the intercept and slope, respectively, which we model
+hierarchically as:
+
+\begin{align}
+\alpha_t &\sim \text{Normal}(a, \sigma^2_a) \\
+a &\sim [a] \\
+\boldsymbol{\beta}_f &\sim \text{Normal}(\textbf{b}, \sigma^2_b) \\
+\textbf{b} &\sim [\textbf{b}]
+\end{align}
+
+where \emph{a} is the `global' intercept across years and \textbf{b} is
+a vector of `global' parameter coefficients across families. We use the
+notation {[}.{]} to represent any chosen distribution.
+
+The full model is specified as:
+
+\begin{align}
+[\sigma^2, \boldsymbol{\alpha}, \textbf{B}, a, \textbf{b}, \sigma^2_a, \boldsymbol{\sigma}^2_b] &\propto \\ \nonumber 
+&\prod_{t=1}^T \prod_{i=1}^n [y_{i(f),t} | \mu_{i(f),t}, \sigma^2] [\mu_{i(f),t} | \alpha_t, \boldsymbol{\beta}_f] [\alpha_t | a, \sigma^2_a] \times \\ \nonumber 
+&\prod_{f=1}^F [\boldsymbol{\beta}_f | \textbf{b}, \boldsymbol{\sigma}^2_b] [a] [\textbf{b}] [\sigma^2_a] [\boldsymbol{\sigma}^2_b]
+\end{align}
+
+where all symbols are as defined above, except \textbf{B} is a
+\(c \times F\) matrix of covariate coefficients (\emph{c} = number of
+covariates; \emph{F} = number of families).
+
+We fit the model using the `No-U-Turn' MCMC sampler in Rstan. We
+obtained posterior distributions of all model parameters from 1,000 MCMC
+iterations, after discarding an initial 1,000 iterations as burn in. We
+assessed convergence visually and by ensuring that scale reduction
+factors were less than 1.01.
+
+\subsection{Preliminary Results}\label{preliminary-results}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics{model_description_files/figure-latex/figure_1.pdf}
+\caption{plot of chunk figure\_1}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics{model_description_files/figure-latex/figure_2.pdf}
+\caption{plot of chunk figure\_2}
+\end{figure}
+
+\end{document}
