@@ -6,6 +6,11 @@ library(ggplot2)
 library(plyr)
 library(reshape2)
 library(xlsx)
+library(raster)
+library(sp)
+library(rgeos)
+library(Matrix)
+library(gstat)
 
 
 ####
@@ -51,7 +56,7 @@ variable_names <- colnames(X[,2:ncol(X)])
 
 
 ####
-##  Bring in model fit results
+####  Bring in model fit results
 ####
 long <- readRDS("fishbiomass_stanmcmc.RDS")
 short <- ddply(long, .(Parameter), summarise,
@@ -118,3 +123,17 @@ plot_df <- merge(obs_df, pred_df, by="id")
 plot_df$prediction <- exp(plot_df$log_prediction)
 plot(prediction~value, plot_df, xlim=c(0,200), ylim=c(0,200))
 abline(0,1)
+
+
+####
+####  Variogram
+####
+dat <- data.frame(Lat = plot_df$Lat, 
+                  Lon = plot_df$Lon,
+                  resid_val = plot_df$prediction - plot_df$value)
+coordinates(dat) <- c("Lon", "Lat")
+varMod <- variogram(resid_val~1, data=dat)
+plot(varMod$dist, varMod$gamma, ylim=c(0,max(varMod$gamma)), col="dodgerblue", 
+     type="l", main="variogram of model residuals", xlab="distance",
+     ylab="semivariance")
+points(varMod$dist, varMod$gamma, ylim=c(0,max(varMod$gamma)), col="dodgerblue", pch=21, bg="white")
