@@ -17,13 +17,13 @@ library(plyr);  library(reshape2)
 ####
 set.seed(123)
 n.site <- 200
-alpha0 <- -0.2
+alpha0 <- -0.1
 sigma <- 1
-alpha <- 0.4
-beta <- 0.1
-Mu <- exp(alpha0 + rnorm(n.site,0,sigma))
+eps0 <- rnorm(n.site,0,sigma)
+alpha <- 200
+beta <- 2
+Mu <- exp(alpha0)# + eps0)
 N.s <- rpois(n.site, Mu)
-N.s
 Y.s <- N.s
 for(i in 1:length(Y.s)){
   if(Y.s[i]>0){
@@ -51,7 +51,7 @@ model.string <- "
 model{
   ### Latent process
   for(i in 1:nsite){
-    log(mupred[i]) <- alpha + eps[i]
+    log(mupred[i]) <- alpha #+ eps[i]
   }
 
   ### Observation model
@@ -66,7 +66,7 @@ model{
   
   ## Evaluation of probabilities of zeros
   for(j in 1:nabs){
-    # Probability of absence at site j
+    # Probability of presence at site j
     proba[j] <- 1-exp(-mupred[abse[j]])
     Y[abse[j]] ~ dbern(proba[j])
   }
@@ -75,15 +75,12 @@ model{
   a ~ dgamma(2,5)
   b ~ dgamma(2,5)
   alpha ~ dnorm(0, 0.01)
-  sigma ~ dunif(0,100)
-  for(i in 1:nsite){
-    eps[i] ~ dnorm(0, sigma)
-  }
+#   sigma ~ dunif(0,100)
+#   for(i in 1:nsite){
+#     eps[i] ~ dnorm(0, sigma)
+#   }
 
   ### Derived quantities
-  for(i in 1:nsite){
-    expbiom[i] <- (a*mupred[i])/b
-  }
 
 } #end model" 
 
@@ -96,7 +93,7 @@ abse <- which(Y.data[,"biomass"]==0)
 pres <- which(Y.data[,"biomass"]>0)
 datalist <- list(Y=Y.data[,"biomass"], nsite=nrow(Y.data),
                  abse=abse, pres=pres, nabs=length(abse), npres=length(pres))
-pars <- c("alpha", "a", "b", "npatch", "expbiom")
+pars <- c("alpha", "a", "b", "npatch")
 
 nAdapt <- 100
 nIter <- 1000
@@ -104,10 +101,5 @@ nSamp <- 2000
 jm1 <- jags.model(textConnection(model.string), data=datalist, n.chains=1, n.adapt = nAdapt)
 update(jm1, n.iter=nIter)
 zm <- coda.samples(jm1, variable.names=pars, n.iter=nSamp, n.thin=1)
-
+head(zm)
 zmd <- as.data.frame(zm[[1]])
-par(mfrow=c(1,3))
-plot(density(zmd[,"alpha"]))
-plot(density(zmd[,"a"]))
-plot(density(zmd[,"expbiom[78]"]))
-median(zmd[,"alpha"])
