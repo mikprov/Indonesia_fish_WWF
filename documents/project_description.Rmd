@@ -18,7 +18,7 @@ Our goal is to identify important drivers of spatial variation of fish biomass f
 
 ### Research questions
 1. Do key fisheries species need species-specific management plans? Use Zones are the most common way to manage harvesters in MPAs in Indonesia and are an umbrella management tool for all fish species. More tailored management plans may be needed for target species if Use Zones are not able to mitigate fishing pressure. 
-2. Are certain types of reefs more vulnerable to fishing? Reef habitat, structure, and exposure all contribute to the level of fish biomass a reef can support in the presence and absence of fishing. Managers may be interested to know if certain types of reefs are particularly vulnerable to fishing. 
+2. Are certain types of reefs more vulnerable to fishing? Reef habitat, structure, and exposure all contribute to the level of fish biomass a reef can support in the presence and absence of fishing. Managers may be interested to know if certain types of reefs are particularly vulnerable to fishing.
 
 
 ### General Methods
