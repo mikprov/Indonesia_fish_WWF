@@ -16,8 +16,8 @@ library(plyr);  library(reshape2)
 ####  Simulate data
 ####
 set.seed(123)
-n.site <- 100
-alpha0 <- -1
+n.site <- 200
+alpha0 <- -0.2
 sigma <- 1
 alpha <- 0.4
 beta <- 0.1
@@ -31,6 +31,7 @@ for(i in 1:length(Y.s)){
   }
 }
 hist(Y.s)
+length(which(Y.s==0))
 Y.data <- data.frame(site=c(1:n.site), biomass=Y.s)
 
 ####
@@ -65,7 +66,7 @@ model{
   
   ## Evaluation of probabilities of zeros
   for(j in 1:nabs){
-    # Probability of presence at site j
+    # Probability of absence at site j
     proba[j] <- 1-exp(-mupred[abse[j]])
     Y[abse[j]] ~ dbern(proba[j])
   }
@@ -80,7 +81,10 @@ model{
   }
 
   ### Derived quantities
-  avgposbiom <- a/b
+  for(i in 1:nsite){
+    expbiom[i] <- (a*mupred[i])/b
+  }
+
 } #end model" 
 
 
@@ -92,7 +96,7 @@ abse <- which(Y.data[,"biomass"]==0)
 pres <- which(Y.data[,"biomass"]>0)
 datalist <- list(Y=Y.data[,"biomass"], nsite=nrow(Y.data),
                  abse=abse, pres=pres, nabs=length(abse), npres=length(pres))
-pars <- c("alpha", "a", "b", "npatch", "avgposbiom")
+pars <- c("alpha", "a", "b", "npatch", "expbiom")
 
 nAdapt <- 100
 nIter <- 1000
@@ -105,5 +109,5 @@ zmd <- as.data.frame(zm[[1]])
 par(mfrow=c(1,3))
 plot(density(zmd[,"alpha"]))
 plot(density(zmd[,"a"]))
-plot(density(zmd[,"b"]))
+plot(density(zmd[,"expbiom[78]"]))
 median(zmd[,"alpha"])
