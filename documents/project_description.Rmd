@@ -16,6 +16,11 @@ library(ggplot2); library(ggmap)
 ### Introduction
 Our goal is to identify important drivers of spatial variation of fish biomass for several ecologically and economically important fishes in the Bird's Head Seascape in Indonesia. In particular, we are interested in relative contribution of environmental (e.g. coral reef exposure to wave energy) and social variables (e.g. distance to fish market) to explaining spatial variation in biomass. Identifying the factors that determine the abundance and health (for which biomass is a proxy) of fish species is critical for informing the placement of and need for Marine Protected Areas (MPAs). Since fishing is a major economic activity in Indonesia, there is clearly a need to balance conservation efforts and the impacts of such efforts on human livelihoods. To do so requires the very information we seek to provide here by analyzing the spatial variation of fish biomass for several important species.
 
+### Research questions
+1. Do key fisheries species need species-specific management plans? Use Zones are the most common way to manage harvesters in MPAs in Indonesia and are an umbrella management tool for all fish species. More tailored management plans may be needed for target species if Use Zones are not able to mitigate fishing pressure. 
+2. Are certain types of reefs more vulnerable to fishing? Reef habitat, structure, and exposure all contribute to the level of fish biomass a reef can support in the presence and absence of fishing. Managers may be interested to know if certain types of reefs are particularly vulnerable to fishing. 
+
+
 ### General Methods
 Our data come from dive surveys conducted of the coast of West Papua in the SEA NAME (Figure #). Surveys were conducted between DATE to DATE. The data consists of estimates of fish biomass calculated from fish length using allometric relationships. Predictor variables can be seen in Table #. 
 
