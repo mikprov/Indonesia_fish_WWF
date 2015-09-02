@@ -78,15 +78,16 @@ model_data <- model_data[which(model_data[,"value"]>0),]
 ####  Set up predictor matrix
 ####
 # Subset out the predictors
-x_matrix <- all_data[,grep("X", names(all_data))] # all predictors
+all.preds <- model_data[,grep("X", names(model_data))] # all predictors
+x_matrix <- model_data[,grep("X", names(model_data))] # all predictors
 toscale <- sapply(x_matrix, is.numeric) # id numeric predictors for scaling
 x_matrix[toscale] <- lapply(x_matrix[toscale], scale) # scale numerics
-all_data[,grep("X", names(all_data))] <- x_matrix # replace with scaled version
+model_data[,grep("X", names(model_data))] <- x_matrix # replace with scaled version
 
 # Make design matrix for predictors
-preds <- paste(names(all_data[9:19]), sep="", collapse="+") 
+preds <- paste(names(model_data[9:19]), sep="", collapse="+") 
 model <- paste("value", preds, sep="~")
-X <- model.matrix(as.formula(model) , data = all_data)
+X <- model.matrix(as.formula(model) , data = model_data)
 
 
 
@@ -139,15 +140,15 @@ y <- log(model_data[,"value"])
 X <- X[,2:ncol(X)] #take out the added intercept column, we do that ourselves
 nobs <- length(y)
 ncovs <- ncol(X)
-fid <- as.numeric(as.factor(all_data$variable))
+fid <- as.numeric(as.factor(model_data$variable))-1
 nfam <- length(unique(fid))
-nyrs <- length(unique(all_data$year))
-yid <- as.numeric(as.factor(all_data$year))
+nyrs <- length(unique(model_data$year))
+yid <- as.numeric(as.factor(model_data$year))
 
 datalist <- list(y=y, X=X, nobs=nobs, ncovs=ncovs, nfam=nfam, fid=fid,
                  nyrs=nyrs, yid=yid)
 pars=c("a_mu", "a", "b_mu",  "b", "sig_b", "sig_a",
-       "sig_m", "fint", "sig_f")
+       "prec.sigma", "prec.varsigma", "fint", "sig_f")
 
 nAdapt <- 5000
 nIter <- 10000
@@ -155,6 +156,88 @@ nSamp <- 20000
 jm1 <- jags.model(textConnection(model.string), data=datalist, n.chains=1, n.adapt = nAdapt)
 update(jm1, n.iter=nIter)
 zm <- coda.samples(jm1, variable.names=pars, n.iter=nSamp, n.thin=1)
-zmgg <- ggs(zm)
-ggs_traceplot(zmgg, family="b_mu")
+
+
+
+####
+####  Get summary statistics ---------------------------------------------------
+####
+##  Summarize MCMC output
+zm.stats <- summary(zm)$stat
+
+##  Just get the betas
+beta.stats <- zm.stats[grep("b", rownames(zm.stats)),]
+torm <- c(grep("mu", rownames(beta.stats)), grep("sig", rownames(beta.stats)))
+beta.stats <- beta.stats[-torm,] #remove non-beta terms with b in name
+beta.stats <- as.data.frame(beta.stats)
+
+# Add in family and predictor IDs
+pred.names <- colnames(X) #predictor names, in order
+fam.names <- data.frame(famname=unique(model_data[,"variable"]))
+fam.names$numid <- as.numeric(as.factor(fam.names[,"famname"]))-1
+fam.names <- fam.names[with(fam.names, order(numid)), ]
+beta.stats$family <- rep(fam.names[,"famname"], times=ncovs)
+beta.stats$predictor <- rep(pred.names, each=nfam)
+
+
+##  Get alpha_mu
+alpha.mu.stats <- zm.stats[grep("a_mu", rownames(zm.stats)),]
+
+
+##  Get family intercepts
+fam.ints <- as.data.frame(zm.stats[grep("fint", rownames(zm.stats)),])
+fam.ints$family <- fam.names[,"famname"]
+
+
+
+####
+####  Make new predictions for range of distance to settlement -----------------
+####
+##  Since the predictor variables were standardized, the mean of all predictors
+##  is 0. So, to look at effect of a single predictor, we can just ignore all
+##  the other ones in the regression because setting them to their mean is
+##  equivalent to setting them to zero, and beta*0 = 0.
+##  
+##  To look at a range of distance to settlement, we first create a vector of
+##  distances based on the range of the data. Then we scale those values by the
+##  mean and variance of the OBSERVATIONS. This way everything is on the right
+##  scale. Then we can back-transform for plotting.
+
+##  Set up new predictor vector
+dist.to.settlement <- all.preds[,grep("X8_distance_to_settlement",colnames(all.preds))]
+mean.dist <- mean(dist.to.settlement)
+stdev.dist <- sd(dist.to.settlement)
+dist.vector <- seq(min(dist.to.settlement), max(dist.to.settlement), length.out = 100)
+dist.vector.scaled <- (dist.vector-mean.dist)/stdev.dist
+
+##  Make predictions for each family
+##  Predictions are log(biomass)
+new.preds <- matrix(ncol=nfam, nrow=length(dist.vector.scaled))
+for(i in 1:nfam){
+  do.fam <- fam.names[which(fam.names[,"numid"]==i),"famname"]
+  alpha <- as.numeric(alpha.mu.stats[1])
+  fam.int <- as.numeric(fam.ints[i,1])
+  fam.beta <- subset(beta.stats, family==do.fam & predictor=="X8_distance_to_settlement")
+  fam.beta <- as.numeric(fam.beta[1])
+  
+  new.preds[,i] <- alpha + fam.int + fam.beta*dist.vector.scaled
+}
+
+
+##  Plot the new predictions
+colnames(new.preds) <- fam.names[,"famname"]
+new.preds <- as.data.frame(new.preds)
+new.preds$distance.to.settlement <- dist.vector
+new.preds.df <- melt(new.preds, id.vars = "distance.to.settlement")
+new.preds.df$biomass <- exp(new.preds.df[,"value"])
+
+my.cols <- c("#476261","#CC51C9","#84D14B","#CA5632","#C795BF","#7ED19D",
+             "#D0B646","#CAA787","#C54973","#87BCCE","#543A69","#61332C",
+             "#586B2F","#7572CE")
+ggplot(data=new.preds.df, aes(x=distance.to.settlement, y=biomass, color=variable))+
+  geom_line(size=1)+
+  xlab("Distance to Settlement (meters)")+
+  ylab("Predicted Biomass (kg/ha)")+
+  scale_colour_manual(values=rev(my.cols), name="Family")
+
 
