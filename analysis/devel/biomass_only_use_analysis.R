@@ -28,12 +28,12 @@ library(xlsx);  library(ggmcmc)
 ####
 ##  Read in biomass data
 datapath <- "/Users/atredenn/Dropbox/Fish Drivers Paper/DATA/"
-file <- "fish_biomass_all_years_fishdrivers_6.17.2015.xlsx"
+file <- "fish_biomass_all_years_fishdrivers_9.1.2015.xlsx"
 biomass_raw <- read.xlsx(paste0(datapath,file), sheetIndex = 1)
 
 ##  Remove some columns
 toremove <- c("Contextual_variables", "sample.event", 
-              "num.transects.per.site.fdata", "MPA")
+              "num.transects.per.site.fdata", "MPA", "hard_coral")
 rmids <- which(colnames(biomass_raw) %in% toremove)
 biomass_sub <- biomass_raw[,-rmids]
 
@@ -43,7 +43,7 @@ biomass[which(biomass$zone=="USE"), "zone"] <- "Use"
 
 ##  Read in covariates
 datapath <- "/Users/atredenn/Dropbox/Fish Drivers Paper/DATA/"
-file <- "contextual_variables_fishdrivers_6.17.2015.xlsx"
+file <- "contextual_variables_fishdrivers_9.1.2015.xlsx"
 variables <- read.xlsx(paste0(datapath,file), sheetIndex = 1)
 
 ##  Remove some columns
