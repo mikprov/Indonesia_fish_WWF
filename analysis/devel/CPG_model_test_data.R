@@ -14,19 +14,29 @@ library(xlsx)
 
 
 ####
-####  Read in data
+####  Read in data -------------------------------------------------------------
 ####
-biomass_raw <- read.xlsx("/Users/atredenn/Dropbox/Fish Drivers Paper/DATA/fish_biomass_all_years_fishdrivers_6.17.2015.xlsx",
-                         sheetIndex = 1)
-toremove <- c("Contextual_variables", "sample.event", "num.transects.per.site.fdata",
-              "MPA")
+##  Read in biomass data
+datapath <- "/Users/atredenn/Dropbox/Fish Drivers Paper/DATA/"
+file <- "fish_biomass_all_years_fishdrivers_9.1.2015.xlsx"
+biomass_raw <- read.xlsx(paste0(datapath,file), sheetIndex = 1)
+
+##  Remove some columns
+toremove <- c("Contextual_variables", "sample.event", 
+              "num.transects.per.site.fdata", "MPA", "hard_coral")
 rmids <- which(colnames(biomass_raw) %in% toremove)
 biomass_sub <- biomass_raw[,-rmids]
+
+##  Convert data to long format
 biomass <- melt(biomass_sub, id.vars = c("zone", "site_id", "year", "depth"))
 biomass[which(biomass$zone=="USE"), "zone"] <- "Use"
 
-variables <- read.xlsx("/Users/atredenn/Dropbox/Fish Drivers Paper/DATA/contextual_variables_fishdrivers_6.17.2015.xlsx",
-                       sheetIndex = 1)
+##  Read in covariates
+datapath <- "/Users/atredenn/Dropbox/Fish Drivers Paper/DATA/"
+file <- "contextual_variables_fishdrivers_9.1.2015.xlsx"
+variables <- read.xlsx(paste0(datapath,file), sheetIndex = 1)
+
+##  Remove some columns
 tmpids <- which(names(variables) %in% c("Site.ID", "Lat", "Lon"))
 tokeep <- c(tmpids, grep("X", names(variables)))
 variables_sub <- variables[,tokeep]
@@ -34,12 +44,14 @@ torm <- which(names(variables_sub) %in% c("X4_Exposure_numeric_code",
                                           "X5_reef_slope_numeric_code", 
                                           "X6_reef_type_num"))
 variables_sub <- variables_sub[,-torm]
+
+##  Change some covariates to factors
 variables_sub$X10_watershed_pollution_risk <- as.factor(variables_sub$X10_watershed_pollution_risk)
 variables_sub$X11_monsoon_direction <- as.factor(variables_sub$X11_monsoon_direction)
 
 ##  Merge data frames
 all_data <- merge(biomass, variables_sub, by.x = "site_id", by.y = "Site.ID")
-sub_data <- subset(all_data, variable=="Carangidae")
+sub_data <- subset(all_data, variable=="Caesionidae")
 sub_data <- sub_data[, c("site_id", "value", "X8_distance_to_settlement")]
 
 
@@ -122,10 +134,10 @@ pars <- c("alpha", "a", "b")
 
 nAdapt <- 100
 nIter <- 1000
-nSamp <- 2000
+nSamp <- 20000
 jm1 <- jags.model(textConnection(model.string), data=datalist, n.chains=1, n.adapt = nAdapt)
 update(jm1, n.iter=nIter)
-zm <- coda.samples(jm1, variable.names=pars, n.iter=nSamp, n.thin=1)
+zm <- coda.samples(jm1, variable.names=pars, n.iter=nSamp, n.thin=20)
 zmd <- as.data.frame(zm[[1]])
 
 par(mfrow=c(3,2))
