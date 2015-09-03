@@ -154,9 +154,9 @@ pars=c("a_mu", "a", "b_mu",  "b", "sig_b", "sig_a",
 nAdapt <- 5000
 nIter <- 10000
 nSamp <- 20000
-jm1 <- jags.model(textConnection(model.string), data=datalist, n.chains=1, n.adapt = nAdapt)
+jm1 <- jags.model(textConnection(model.string), data=datalist, n.chains=3, n.adapt = nAdapt)
 update(jm1, n.iter=nIter)
-zm <- coda.samples(jm1, variable.names=pars, n.iter=nSamp, n.thin=1)
+zm <- coda.samples(jm1, variable.names=pars, n.iter=nSamp, n.thin=10)
 
 
 
