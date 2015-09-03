@@ -84,7 +84,8 @@ model{
   ## Positive biomass data
   for(k in 1:npres){
     ## Number of patches (latent)
-    npatch[k] ~ dpois(mupred[pres[k]]) T(1,)
+    isCensored[k] ~ dinterval(npatch[k], 1)
+    npatch[k] ~ dpois(mupred[pres[k]])
     ## Observed positive biomass
     Y_a[k] <- a*npatch[k]
     Y[pres[k]] ~ dgamma(Y_a[k], b)
@@ -98,9 +99,11 @@ model{
   }
 
   ### Priors
-  a ~ dgamma(1,5)
-  b ~ dgamma(1,5)
-  alpha ~ dnorm(0,0.01)
+  a <- pow(m,2)/pow(sd,2)
+  b <- m/pow(sd,2)
+  m ~ dunif(0,100)
+  sd ~ dunif(0,100)
+  alpha ~ dnorm(0, 0.01)
 
 } #end model" 
 
@@ -115,7 +118,7 @@ abse <- which(Y.data[,"value"]==0)
 pres <- which(Y.data[,"value"]>0)
 datalist <- list(Y=Y.data[,"value"], nsite=nrow(Y.data),
                  abse=abse, pres=pres, nabs=length(abse), npres=length(pres))
-pars <- c("alpha", "a", "b", "npatch")
+pars <- c("alpha", "a", "b")
 
 nAdapt <- 100
 nIter <- 1000
@@ -123,5 +126,13 @@ nSamp <- 2000
 jm1 <- jags.model(textConnection(model.string), data=datalist, n.chains=1, n.adapt = nAdapt)
 update(jm1, n.iter=nIter)
 zm <- coda.samples(jm1, variable.names=pars, n.iter=nSamp, n.thin=1)
-head(zm)
 zmd <- as.data.frame(zm[[1]])
+
+par(mfrow=c(3,2))
+plot(density(zmd[,"a"]))
+plot(zmd[,"a"], type="l")
+plot(density(zmd[,"b"]))
+plot(zmd[,"b"], type="l")
+plot(density(zmd[,"alpha"]))
+plot(zmd[,"alpha"], type="l")
+

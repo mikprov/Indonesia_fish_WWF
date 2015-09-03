@@ -91,8 +91,6 @@ model{
     eps[i] ~ dnorm(0, sigma)
   }
 
-  ### Derived quantities
-
 } #end model" 
 
 
