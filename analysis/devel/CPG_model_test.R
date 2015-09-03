@@ -4,6 +4,8 @@
 # Clear workspace 
 rm(list=ls(all=TRUE))
 
+
+
 ####
 ####  Load libraries
 ####
@@ -34,6 +36,8 @@ hist(Y.s)
 length(which(Y.s==0))
 Y.data <- data.frame(site=c(1:n.site), biomass=Y.s)
 
+
+
 ####
 ####  Quantities of interest, derived
 ####
@@ -44,6 +48,8 @@ E.biomass <- (Mu*alpha)/beta
 mean(E.biomass)
 mean(E.pos.biomass)
 
+
+
 ####
 ####  Write JAGS model
 ####
@@ -51,7 +57,7 @@ model.string <- "
 model{
   ### Latent process
   for(i in 1:nsite){
-    log(mupred[i]) <- alpha #+ eps[i]
+    log(mupred[i]) <- alpha + eps[i]
   }
 
   ### Observation model
@@ -75,10 +81,10 @@ model{
   a ~ dgamma(2,5)
   b ~ dgamma(2,5)
   alpha ~ dnorm(0, 0.01)
-#   sigma ~ dunif(0,100)
-#   for(i in 1:nsite){
-#     eps[i] ~ dnorm(0, sigma)
-#   }
+  sigma ~ dunif(0,100)
+  for(i in 1:nsite){
+    eps[i] ~ dnorm(0, sigma)
+  }
 
   ### Derived quantities
 
