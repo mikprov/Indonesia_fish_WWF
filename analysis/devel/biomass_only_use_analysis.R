@@ -20,6 +20,7 @@ rm(list=ls(all=TRUE))
 library(rjags); library(ggplot2)
 library(plyr);  library(reshape2)
 library(xlsx);  library(ggmcmc)
+library(gridExtra)
 
 
 
@@ -164,6 +165,7 @@ zm <- coda.samples(jm1, variable.names=pars, n.iter=nSamp, n.thin=1)
 ####
 ##  Summarize MCMC output
 zm.stats <- summary(zm)$stat
+zm.quants <- summary(zm)$quantile
 
 ##  Just get the betas
 beta.stats <- zm.stats[grep("b", rownames(zm.stats)),]
@@ -188,6 +190,43 @@ alpha.mu.stats <- zm.stats[grep("a_mu", rownames(zm.stats)),]
 fam.ints <- as.data.frame(zm.stats[grep("fint", rownames(zm.stats)),])
 fam.ints$family <- fam.names[,"famname"]
 
+
+
+####
+####  Plot mean and 95% BCIs for the distance to settlement effect -------------
+####
+##  Just get the betas
+beta.quants <- zm.quants[grep("b", rownames(zm.quants)),]
+torm <- c(grep("mu", rownames(beta.quants)), grep("sig", rownames(beta.quants)))
+beta.quants <- beta.quants[-torm,] #remove non-beta terms with b in name
+beta.quants <- as.data.frame(beta.quants)
+beta.quants$family <- rep(fam.names[,"famname"], times=ncovs)
+beta.quants$predictor <- rep(pred.names, each=nfam)
+dist.settle.quants <- subset(beta.quants, predictor=="X8_distance_to_settlement")
+colnames(dist.settle.quants) <- c("lowerBCI", "loBCI", "median", "upBCI",
+                                  "upperBCI", "family", "predictor")
+
+##  Make plot
+g1 <- ggplot(dist.settle.quants, aes(x=family))+
+  geom_hline(aes(yintercept=0), linetype=2)+
+  geom_errorbar(aes(ymin=lowerBCI, ymax=upperBCI), width=0)+
+  geom_errorbar(aes(ymin=loBCI, ymax=upBCI), width=0, size=2)+
+  geom_point(aes(y=median), size=5)+
+  ylab("Standardized Effect of Distance to Settlement")+
+  xlab("Family")+
+  coord_flip()+
+  theme_bw()
+
+
+##  ID families with 75% BCIs that don't overlap 0
+imp.flag <- numeric(nrow(dist.settle.quants))
+for(i in 1:length(imp.flag)){
+  ifelse(sign(dist.settle.quants[i,"loBCI"])==sign(dist.settle.quants[i,"upBCI"]),
+         imp.flag[i] <- 1,
+         imp.flag[i] <- 0)
+}
+dist.settle.quants$important <- imp.flag
+fams.dist.imp <- dist.settle.quants[which(dist.settle.quants[,"important"]==1), "family"]
 
 
 ####
@@ -224,7 +263,7 @@ for(i in 1:nfam){
 }
 
 
-##  Plot the new predictions
+##  Plot the new predictions; only for families with strong coefficient effect
 colnames(new.preds) <- fam.names[,"famname"]
 new.preds <- as.data.frame(new.preds)
 new.preds$distance.to.settlement <- dist.vector
@@ -234,10 +273,19 @@ new.preds.df$biomass <- exp(new.preds.df[,"value"])
 my.cols <- c("#476261","#CC51C9","#84D14B","#CA5632","#C795BF","#7ED19D",
              "#D0B646","#CAA787","#C54973","#87BCCE","#543A69","#61332C",
              "#586B2F","#7572CE")
-ggplot(data=new.preds.df, aes(x=distance.to.settlement, y=biomass, color=variable))+
+g2 <- ggplot(data=subset(new.preds.df, variable %in% fams.dist.imp), 
+             aes(x=distance.to.settlement, y=biomass, color=variable))+
   geom_line(size=1)+
   xlab("Distance to Settlement (meters)")+
   ylab("Predicted Biomass (kg/ha)")+
-  scale_colour_manual(values=rev(my.cols), name="Family")
+  scale_colour_manual(values=my.cols, name="Family")+
+  theme_bw()
 
 
+
+####
+####  Combine plots and save ---------------------------------------------------
+####
+pdf("dist_to_settlement_analysis.PDF", width = 12, height = 4)
+g.out <- grid.arrange(g1, g2, ncol=2, nrow=1)
+dev.off()
