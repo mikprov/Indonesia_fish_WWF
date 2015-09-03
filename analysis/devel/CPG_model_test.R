@@ -24,7 +24,7 @@ sigma <- 1
 eps0 <- rnorm(n.site,0,sigma)
 alpha <- 200
 beta <- 2
-Mu <- exp(alpha0)# + eps0)
+Mu <- exp(alpha0 + eps0)
 N.s <- rpois(n.site, Mu)
 Y.s <- N.s
 for(i in 1:length(Y.s)){
@@ -32,6 +32,8 @@ for(i in 1:length(Y.s)){
     Y.s[i] <- sum(rgamma(Y.s[i], alpha, beta))
   }
 }
+
+par(mfrow=c(1,1))
 hist(Y.s)
 length(which(Y.s==0))
 Y.data <- data.frame(site=c(1:n.site), biomass=Y.s)
@@ -64,7 +66,8 @@ model{
   ## Positive biomass data
   for(k in 1:npres){
     ## Number of patches (latent)
-    npatch[k] ~ dpois(mupred[pres[k]]) T(1,)
+    isCensored[k] ~ dinterval(npatch[k], 1)
+    npatch[k] ~ dpois(mupred[pres[k]])
     ## Observed positive biomass
     Y_a[k] <- a*npatch[k]
     Y[pres[k]] ~ dgamma(Y_a[k], b)
@@ -72,16 +75,18 @@ model{
   
   ## Evaluation of probabilities of zeros
   for(j in 1:nabs){
-    # Probability of presence at site j
+    # Probability of absence at site j
     proba[j] <- 1-exp(-mupred[abse[j]])
     Y[abse[j]] ~ dbern(proba[j])
   }
 
   ### Priors
-  a ~ dgamma(2,5)
-  b ~ dgamma(2,5)
+  a <- pow(m,2)/pow(sd,2)
+  b <- m/pow(sd,2)
+  m ~ dunif(0,100)
+  sd ~ dunif(0,100)
   alpha ~ dnorm(0, 0.01)
-  sigma ~ dunif(0,100)
+  sigma ~ dt(0, 0.1, 1) T(0,) #half-cauchy prior
   for(i in 1:nsite){
     eps[i] ~ dnorm(0, sigma)
   }
@@ -101,11 +106,23 @@ datalist <- list(Y=Y.data[,"biomass"], nsite=nrow(Y.data),
                  abse=abse, pres=pres, nabs=length(abse), npres=length(pres))
 pars <- c("alpha", "a", "b", "npatch")
 
-nAdapt <- 100
-nIter <- 1000
-nSamp <- 2000
+nAdapt <- 1000
+nIter <- 10000
+nSamp <- 20000
 jm1 <- jags.model(textConnection(model.string), data=datalist, n.chains=1, n.adapt = nAdapt)
 update(jm1, n.iter=nIter)
-zm <- coda.samples(jm1, variable.names=pars, n.iter=nSamp, n.thin=1)
+zm <- coda.samples(jm1, variable.names=pars, n.iter=nSamp, n.thin=10)
 head(zm)
 zmd <- as.data.frame(zm[[1]])
+
+par(mfrow=c(3,2))
+plot(density(zmd[,"a"]))
+abline(v = alpha, col="red")
+plot(zmd[,"a"], type="l")
+plot(density(zmd[,"b"]))
+abline(v = beta, col="red")
+plot(zmd[,"b"], type="l")
+plot(density(zmd[,"alpha"]))
+abline(v = alpha0, col="red")
+plot(zmd[,"alpha"], type="l")
+
