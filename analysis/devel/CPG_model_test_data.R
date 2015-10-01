@@ -52,7 +52,7 @@ variables_sub$X11_monsoon_direction <- as.factor(variables_sub$X11_monsoon_direc
 ##  Merge data frames
 all_data <- merge(biomass, variables_sub, by.x = "site_id", by.y = "Site.ID")
 sub_data <- subset(all_data, variable=="Caesionidae")
-sub_data <- sub_data[, c("site_id", "value", "X8_distance_to_settlement")]
+# sub_data <- sub_data[, c("site_id", "value", "X8_distance_to_settlement")]
 
 
 ####
@@ -97,8 +97,6 @@ ggplot(data=zeros.data, aes(x=family, y=propzs))+
   ylab("Proportion of observations that are 0")+
   xlab("Fish family")
 
-subset(all_data, variable=="Nemipteridae")[,"value"]
-
 ####
 ####  Write JAGS model
 ####
@@ -106,7 +104,7 @@ model.string <- "
 model{
   ### Latent process
   for(i in 1:nsite){
-    log(mupred[i]) <- alpha + sum(beta[]*x[i,])
+    log(mupred[i]) <- alpha + inprod(X[i,],beta[])
   }
 
   ### Observation model
@@ -133,7 +131,9 @@ model{
   m ~ dunif(0,100)
   sd ~ dunif(0,100)
   alpha ~ dnorm(0, 0.01)
-  for(i in 1:ncovs) beta[i] ~ dnorm(0,0.01)
+  for(i in 1:ncovs){
+    beta[i] ~ dnorm(0,0.01)
+  }
 
 } #end model" 
 
@@ -146,14 +146,14 @@ Y.data <- sub_data
 hist(Y.data[,"value"])
 abse <- which(Y.data[,"value"]==0)
 pres <- which(Y.data[,"value"]>0)
-x <-
-datalist <- list(Y=Y.data[,"value"], nsite=nrow(Y.data),
+Xmod <- X[,2:ncol(X)] 
+datalist <- list(Y=Y.data[,"value"], nsite=nrow(Y.data), X=Xmod, ncovs=ncol(Xmod),
                  abse=abse, pres=pres, nabs=length(abse), npres=length(pres))
-pars <- c("alpha", "a", "b")
+pars <- c("alpha", "a", "b", "beta")
 
 nAdapt <- 100
 nIter <- 1000
-nSamp <- 20000
+nSamp <- 2000
 jm1 <- jags.model(textConnection(model.string), data=datalist, n.chains=1, n.adapt = nAdapt)
 update(jm1, n.iter=nIter)
 zm <- coda.samples(jm1, variable.names=pars, n.iter=nSamp, n.thin=20)
@@ -167,3 +167,8 @@ plot(zmd[,"b"], type="l")
 plot(density(zmd[,"alpha"]))
 plot(zmd[,"alpha"], type="l")
 
+par(mfrow=c(4,4))
+beta.cols <- grep("beta", colnames(zmd))
+for(i in 1:length(beta.cols)){
+  plot(zmd[,beta.cols[i]], type="l")
+}

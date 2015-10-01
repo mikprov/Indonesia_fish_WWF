@@ -154,11 +154,11 @@ pres <- which(Y.data[,"value"]>0)
 Xmod <- X[,2:ncol(X)]
 datalist <- list(Y=Y.data[,"value"], nsite=nrow(Y.data), X=Xmod, ncovs=ncol(Xmod),
                  abse=abse, pres=pres, nabs=length(abse), npres=length(pres))
-pars <- c("alpha", "a", "b", "beta", "ind")
+pars <- c("alpha", "a", "b", "betaT", "ind")
 
-nAdapt <- 100
-nIter <- 1000
-nSamp <- 20000
+nAdapt <- 1000
+nIter <- 5000
+nSamp <- 10000
 jm1 <- jags.model(textConnection(model.string), data=datalist, n.chains=1, n.adapt = nAdapt)
 update(jm1, n.iter=nIter)
 zm <- coda.samples(jm1, variable.names=pars, n.iter=nSamp, n.thin=20)
@@ -190,7 +190,7 @@ var.imp <- data.frame(variable = colnames(Xmod), importance=var.imp)
 var.imp <- var.imp[with(var.imp, order(-importance)), ]
 var.imp$rank <- rev(c(1:nrow(var.imp)))
 var.imp$keep <- "no"
-var.imp[which(var.imp$importance>0.75),"keep"] <- "yes"
+var.imp[which(var.imp$importance>0.2),"keep"] <- "yes"
 
 library(ggthemes)
 ggplot(var.imp, aes(x=as.factor(rank), y=importance, fill=keep))+
@@ -211,7 +211,7 @@ post.preds <- zmd[,grep("beta", colnames(zmd))]
 var.imp2 <- out.stats[grep("ind", rownames(out.stats)), "Mean"]
 var.imp2 <- data.frame(variable = colnames(Xmod), importance=var.imp2)
 var.imp2$keep <- "no"
-var.imp2[which(var.imp2$importance>0.75),"keep"] <- "yes"
+var.imp2[which(var.imp2$importance>0.2),"keep"] <- "yes"
 cols_i_want <- which(var.imp2$keep=="yes")
 imp.preds <- post.preds[,cols_i_want]
 imp.preds$iteration <- c(1:nrow(imp.preds))
