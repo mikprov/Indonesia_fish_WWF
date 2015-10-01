@@ -51,8 +51,8 @@ variables_sub$X11_monsoon_direction <- as.factor(variables_sub$X11_monsoon_direc
 
 ##  Merge data frames
 all_data <- merge(biomass, variables_sub, by.x = "site_id", by.y = "Site.ID")
-sub_data <- subset(all_data, variable=="Caesionidae")
-sub_data <- sub_data[, c("site_id", "value", "X8_distance_to_settlement")]
+sub_data <- subset(all_data, variable=="Serranidae")
+# sub_data <- sub_data[, c("site_id", "value", "X8_distance_to_settlement")]
 
 
 ####
@@ -106,7 +106,7 @@ model.string <- "
 model{
   ### Latent process
   for(i in 1:nsite){
-    log(mupred[i]) <- alpha + sum(beta[]*x[i,])
+    log(mupred[i]) <- alpha + inprod(X[i,],beta[])
   }
 
   ### Observation model
@@ -132,9 +132,14 @@ model{
   b <- m/pow(sd,2)
   m ~ dunif(0,100)
   sd ~ dunif(0,100)
-  alpha ~ dnorm(0, 0.01)
-  for(i in 1:ncovs) beta[i] ~ dnorm(0,0.01)
-
+  alpha~dnorm(0,0.0001)
+  taub~dgamma(0.1,0.1)
+  for(j in 1:ncovs){
+    pind[j]~dbeta(2,8)
+    ind[j]~dbern(pind[j])
+    betaT[j]~dnorm(0,taub)
+    beta[j]<-ind[j]*betaT[j]
+  }
 } #end model" 
 
 
@@ -146,10 +151,10 @@ Y.data <- sub_data
 hist(Y.data[,"value"])
 abse <- which(Y.data[,"value"]==0)
 pres <- which(Y.data[,"value"]>0)
-x <-
-datalist <- list(Y=Y.data[,"value"], nsite=nrow(Y.data),
+Xmod <- X[,2:ncol(X)]
+datalist <- list(Y=Y.data[,"value"], nsite=nrow(Y.data), X=Xmod, ncovs=ncol(Xmod),
                  abse=abse, pres=pres, nabs=length(abse), npres=length(pres))
-pars <- c("alpha", "a", "b")
+pars <- c("alpha", "a", "b", "beta", "ind")
 
 nAdapt <- 100
 nIter <- 1000
@@ -158,6 +163,7 @@ jm1 <- jags.model(textConnection(model.string), data=datalist, n.chains=1, n.ada
 update(jm1, n.iter=nIter)
 zm <- coda.samples(jm1, variable.names=pars, n.iter=nSamp, n.thin=20)
 zmd <- as.data.frame(zm[[1]])
+summary(zm)[[1]]
 
 par(mfrow=c(3,2))
 plot(density(zmd[,"a"]))
@@ -167,3 +173,54 @@ plot(zmd[,"b"], type="l")
 plot(density(zmd[,"alpha"]))
 plot(zmd[,"alpha"], type="l")
 
+par(mfrow=c(4,4))
+beta.cols <- grep("beta", colnames(zmd))
+for(i in 1:length(beta.cols)){
+  plot(zmd[,beta.cols[i]], type="l")
+}
+
+
+
+####
+####  Plot variable importance -------------------------------------------------
+####
+out.stats <- summary(zm)[[1]]
+var.imp <- out.stats[grep("ind", rownames(out.stats)), "Mean"]
+var.imp <- data.frame(variable = colnames(Xmod), importance=var.imp)
+var.imp <- var.imp[with(var.imp, order(-importance)), ]
+var.imp$rank <- rev(c(1:nrow(var.imp)))
+var.imp$keep <- "no"
+var.imp[which(var.imp$importance>0.75),"keep"] <- "yes"
+
+library(ggthemes)
+ggplot(var.imp, aes(x=as.factor(rank), y=importance, fill=keep))+
+  geom_bar(stat="identity", alpha=0.5)+
+  scale_fill_manual(values=c("grey", "blue"))+
+  scale_x_discrete(labels = rev(var.imp$variable))+
+  guides(fill=FALSE)+
+  ylab("Mean posterior variable importance")+
+  xlab("Predictor variable")+
+  coord_flip()+
+  theme_bw()
+
+
+####
+####  Traceplots for important predictors --------------------------------------
+####
+post.preds <- zmd[,grep("beta", colnames(zmd))]
+var.imp2 <- out.stats[grep("ind", rownames(out.stats)), "Mean"]
+var.imp2 <- data.frame(variable = colnames(Xmod), importance=var.imp2)
+var.imp2$keep <- "no"
+var.imp2[which(var.imp2$importance>0.75),"keep"] <- "yes"
+cols_i_want <- which(var.imp2$keep=="yes")
+imp.preds <- post.preds[,cols_i_want]
+imp.preds$iteration <- c(1:nrow(imp.preds))
+imp.preds <- melt(imp.preds, id.vars = "iteration")
+
+ggplot(imp.preds, aes(x=iteration, y=value))+
+  geom_line()+
+  facet_wrap("variable", scales="free")
+
+ggplot(imp.preds, aes(x=value))+
+  geom_density(color=NA, fill="blue", alpha=0.5)+
+  facet_wrap("variable", scales="free")
