@@ -12,6 +12,7 @@ library(plyr);  library(reshape2)
 library(xlsx)
 
 
+do_fam <- "Serranidae"
 
 ####
 ####  Read in data -------------------------------------------------------------
@@ -51,7 +52,7 @@ variables_sub$X11_monsoon_direction <- as.factor(variables_sub$X11_monsoon_direc
 
 ##  Merge data frames
 all_data <- merge(biomass, variables_sub, by.x = "site_id", by.y = "Site.ID")
-sub_data <- subset(all_data, variable=="Caesionidae")
+sub_data <- subset(all_data, variable==do_fam)
 # sub_data <- sub_data[, c("site_id", "value", "X8_distance_to_settlement")]
 
 
@@ -75,27 +76,27 @@ X <- model.matrix(as.formula(model) , data = sub_data)
 ####
 ####  Histrograms of biomass by species
 ####
-ggplot(all_data, aes(x=value))+
-  geom_bar()+
-  facet_wrap("variable", scale="free")
-
-# Plot proportion of sample with zeros for each species
-count=1
-out <- numeric(length(unique(all_data$variable)))
-for(i in unique(all_data$variable)){
-  tmp <- subset(all_data, variable==i)
-  tmpzs <- length(which(tmp[,"value"]==0))/length(tmp[,"value"])
-  out[count] <- tmpzs
-  count <- count+1
-  print(i)
-}
-zeros.data <- data.frame(family=unique(all_data$variable),
-                         propzs=out)
-ggplot(data=zeros.data, aes(x=family, y=propzs))+
-  geom_bar(stat="identity")+
-  coord_flip()+
-  ylab("Proportion of observations that are 0")+
-  xlab("Fish family")
+# ggplot(all_data, aes(x=value))+
+#   geom_bar()+
+#   facet_wrap("variable", scale="free")
+# 
+# # Plot proportion of sample with zeros for each species
+# count=1
+# out <- numeric(length(unique(all_data$variable)))
+# for(i in unique(all_data$variable)){
+#   tmp <- subset(all_data, variable==i)
+#   tmpzs <- length(which(tmp[,"value"]==0))/length(tmp[,"value"])
+#   out[count] <- tmpzs
+#   count <- count+1
+#   print(i)
+# }
+# zeros.data <- data.frame(family=unique(all_data$variable),
+#                          propzs=out)
+# ggplot(data=zeros.data, aes(x=family, y=propzs))+
+#   geom_bar(stat="identity")+
+#   coord_flip()+
+#   ylab("Proportion of observations that are 0")+
+#   xlab("Fish family")
 
 ####
 ####  Write JAGS model
@@ -151,24 +152,44 @@ datalist <- list(Y=Y.data[,"value"], nsite=nrow(Y.data), X=Xmod, ncovs=ncol(Xmod
                  abse=abse, pres=pres, nabs=length(abse), npres=length(pres))
 pars <- c("alpha", "a", "b", "beta")
 
-nAdapt <- 100
+nAdapt <- 1000
 nIter <- 1000
-nSamp <- 2000
+nSamp <- 5000
 jm1 <- jags.model(textConnection(model.string), data=datalist, n.chains=1, n.adapt = nAdapt)
 update(jm1, n.iter=nIter)
 zm <- coda.samples(jm1, variable.names=pars, n.iter=nSamp, n.thin=20)
 zmd <- as.data.frame(zm[[1]])
+# 
+# par(mfrow=c(3,2))
+# plot(density(zmd[,"a"]))
+# plot(zmd[,"a"], type="l")
+# plot(density(zmd[,"b"]))
+# plot(zmd[,"b"], type="l")
+# plot(density(zmd[,"alpha"]))
+# plot(zmd[,"alpha"], type="l")
+# 
+# par(mfrow=c(4,4))
+# beta.cols <- grep("beta", colnames(zmd))
+# for(i in 1:length(beta.cols)){
+#   plot(zmd[,beta.cols[i]], type="l")
+# }
 
-par(mfrow=c(3,2))
-plot(density(zmd[,"a"]))
-plot(zmd[,"a"], type="l")
-plot(density(zmd[,"b"]))
-plot(zmd[,"b"], type="l")
-plot(density(zmd[,"alpha"]))
-plot(zmd[,"alpha"], type="l")
 
-par(mfrow=c(4,4))
-beta.cols <- grep("beta", colnames(zmd))
-for(i in 1:length(beta.cols)){
-  plot(zmd[,beta.cols[i]], type="l")
-}
+####
+####  Plot the posterior means and CIs -----------------------------------------
+####
+library(ggmcmc)
+gg.out <- ggs(zm)
+gg.means <- ddply(gg.out, .(Parameter), summarise,
+                  avg_param = mean(value))
+gg.means <- gg.means[grep("beta", gg.means$Parameter),]
+gg.means$param_name <- colnames(Xmod)
+gg.means <- gg.means[with(gg.means, order(avg_param)), ]
+
+ggs_caterpillar(gg.out, family="beta",
+                thick_ci = c(0.25, 0.75), thin_ci = c(0.025, 0.975))+
+  scale_y_discrete(labels=gg.means$param_name)+
+  geom_vline(xintercept=0, linetype=2)+
+  ggtitle(do_fam)+
+  theme_bw()
+ggsave(paste0(do_fam,"_CPG_meanCIs.png"), width = 6, height=6, units="in")
