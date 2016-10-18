@@ -84,7 +84,7 @@ ggplot(data=zeros.data, aes(x=family, y=propzs))+
   ylab("Proportion of observations that are 0")+
   xlab("Fish family")
 
-subset(all_data, variable=="Nemipteridae")[,"value"]
+# subset(all_data, variable=="Nemipteridae")[,"value"]
 
 ##  Remove Nemipteridae and average_biomass from data
 model_data <- subset(all_data, variable!="Nemipteridae")
